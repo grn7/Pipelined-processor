@@ -26,7 +26,7 @@ module alu (
             FWD_NONE: alu_a = a;
             FWD_WB:   alu_a = wb_result;
             FWD_MEM:  alu_a = mem_result;
-            default:  alu_a = 64'hDEAD_DEAD_DEAD_DEAD;  // Debug value
+            default:  alu_a = 64'hAAAA_AAAAA_AAAA;  // Debug value
         endcase
 
         // Operand B forwarding
@@ -34,7 +34,7 @@ module alu (
             FWD_NONE: alu_b = b;
             FWD_WB:   alu_b = wb_result;
             FWD_MEM:  alu_b = mem_result;
-            default:  alu_b = 64'hBEEF_BEEF_BEEF_BEEF;  // Debug value
+            default:  alu_b = 64'hB0A_B0A_B0A;  // Debug value
         endcase
     end
 
@@ -45,7 +45,7 @@ module alu (
             `ALU_SUB: result = alu_a - alu_b;
             `ALU_AND: result = alu_a & alu_b;
             `ALU_OR:  result = alu_a | alu_b;
-            default:  result = 64'hBAD0_BAD0_BAD0_BAD0;  // Default invalid op
+            default:  result = 64'hBAD1234_BAD1234;  // Default invalid op
         endcase
     end
 
