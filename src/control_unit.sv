@@ -1,4 +1,5 @@
 `include "definitions.sv"
+
 module control_unit (
     input  logic [6:0] opcode,
     input  logic [2:0] funct3,
@@ -11,6 +12,7 @@ module control_unit (
     output logic       alu_src,       
     output logic       branch        
 );
+
     always_comb begin
         // Default values
         alu_control = `ALU_ADD;
@@ -22,17 +24,26 @@ module control_unit (
         branch      = 1'b0;
 
         case (opcode)
-            // I-Type (LD)
+            // I-Type (LD) - Load Double
             `OP_I_TYPE: begin
-                alu_control = `ALU_ADD;
-                reg_write   = 1'b1;
-                mem_read    = 1'b1;
-                mem_write   = 1'b0;
-                mem_to_reg  = 1'b1;
-                alu_src     = 1'b1;
-                branch      = 1'b0;
+                case (funct3)
+                    3'b011: begin  // LD (load doubleword)
+                        alu_control = `ALU_ADD;
+                        reg_write   = 1'b1;
+                        mem_read    = 1'b1;
+                        mem_write   = 1'b0;
+                        mem_to_reg  = 1'b1;
+                        alu_src     = 1'b1;
+                        branch      = 1'b0;
+                        // Removed $display to fix synthesis warnings
+                    end
+                    default: begin
+                        // Removed $display to fix synthesis warnings
+                    end
+                endcase
             end
             
+            // I-Type ALU operations (ADDI) - includes NOP
             `OP_I_ALU: begin
                 alu_control = `ALU_ADD;
                 reg_write   = 1'b1;
@@ -43,8 +54,9 @@ module control_unit (
                 branch      = 1'b0;
             end
 
-            // S-Type (SD)
+            // S-Type (SD) - Store Double
             `OP_S_TYPE: begin
+                // Always treat as SD regardless of funct3
                 alu_control = `ALU_ADD;  // Add rs1 + immediate for address
                 reg_write   = 1'b0;
                 mem_read    = 1'b0;
@@ -52,6 +64,7 @@ module control_unit (
                 mem_to_reg  = 1'b0;
                 alu_src     = 1'b1;      // Use immediate for address calculation
                 branch      = 1'b0;
+                // Removed $display to fix synthesis warnings
             end
 
             // R-Type (ADD/SUB/AND/OR)
@@ -88,10 +101,14 @@ module control_unit (
             end
 
             default: begin
-                // Only display warning if opcode is not all X's (uninitialized)
-                if (opcode !== 7'bxxxxxxx) begin
-                    $display("Warning: Unknown opcode: 0x%h", opcode);
-                end
+                // NOP or unknown instruction
+                alu_control = `ALU_ADD;
+                reg_write   = 1'b0;
+                mem_read    = 1'b0;
+                mem_write   = 1'b0;
+                mem_to_reg  = 1'b0;
+                alu_src     = 1'b0;
+                branch      = 1'b0;
             end
         endcase
     end

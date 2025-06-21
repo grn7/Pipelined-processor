@@ -15,8 +15,8 @@ module data_mem #(
     // Memory array
     reg [63:0] memory_array [0:mem_size-1];
     
-    // Word address - use direct addressing
-    wire [31:0] mem_addr = addr;
+    // Word address (divide byte address by 8)
+    wire [31:0] word_addr = addr[31:3];
 
     // Initialize memory
     integer i;
@@ -27,29 +27,27 @@ module data_mem #(
         end
         
         // Load ROM data from file
-        $display("Loading data memory from %s", rom_file);
         $readmemh(rom_file, memory_array, 0, rom_size-1);
         
-        // Display loaded data
-        $display("Loaded data memory:");
+        $display("Data memory initialized:");
         for (i = 0; i < rom_size; i = i + 1) begin
-            $display("  [%0d]: 0x%h (%0d)", i, memory_array[i], memory_array[i]);
+            $display("  ROM[%0d] = %0d", i, memory_array[i]);
         end
     end
 
-    // Write operation
+    // Write operation - allow writes to word addresses >= 2
     always_ff @(posedge clk) begin
-        if (wr_enable && mem_addr < mem_size) begin
-            if (mem_addr >= rom_size) begin
-                memory_array[mem_addr] <= wr_data;
-                // Removed debug output to clean up testbench
+        if (wr_enable && word_addr < mem_size) begin
+            if (word_addr >= rom_size) begin  // Allow writes to word addr 2 and above
+                memory_array[word_addr] <= wr_data;
+                // Removed $display to fix synthesis warnings
             end else begin
-                $display("WARNING: Attempted write to ROM region at address %0d", mem_addr);
+                // Removed $display to fix synthesis warnings
             end
         end
     end
 
-    // Read operation - always output data
-    assign rd_data = (mem_addr < mem_size) ? memory_array[mem_addr] : 64'b0;
+    // Read operation
+    assign rd_data = (word_addr < mem_size) ? memory_array[word_addr] : 64'b0;
 
 endmodule

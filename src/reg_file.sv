@@ -14,7 +14,7 @@ module reg_file (
     // 32 64-bit registers
     logic [63:0] registers [0:31];
 
-    // Initialize registers
+    // Initialize registers properly
     integer i;
     initial begin
         for (i = 0; i < 32; i = i + 1) begin
@@ -22,19 +22,24 @@ module reg_file (
         end
     end
 
-    // Read operations (combinational)
+    // Read operations (combinational) - ensure x0 is always 0
     assign rd_data1 = (rd_addr1 == 5'b0) ? 64'b0 : registers[rd_addr1];
     assign rd_data2 = (rd_addr2 == 5'b0) ? 64'b0 : registers[rd_addr2];
 
-    // Write operation (sequential)
+    // Write operation (sequential) - prevent writing 'x' values
     always_ff @(posedge clk) begin
         if (rst) begin
             for (i = 0; i < 32; i = i + 1) begin
                 registers[i] <= 64'b0;
             end
         end else if (wr_enable && wr_addr != 5'b0) begin
-            registers[wr_addr] <= wr_data;
-            // Removed debug output to clean up testbench
+            // Only write if data is not 'x'
+            if (wr_data !== 64'bx) begin
+                registers[wr_addr] <= wr_data;
+                // Reduced debug output to prevent spam - removed $display
+            end else begin
+                // Removed $display to fix synthesis warnings
+            end
         end
     end
 

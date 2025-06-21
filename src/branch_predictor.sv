@@ -24,9 +24,9 @@ module branch_predictor (
     // Update logic: 2-bit saturating counter update
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-            // Initialize all counters to 00: Strongly Taken
+            // Initialize all counters to 01: Weakly Taken (better for loops)
             for (int i = 0; i < 16; i++) begin
-                branch_history[i] <= 2'b00;
+                branch_history[i] <= 2'b01;
             end
         end else if (branch_resolved) begin
             case (branch_history[resolved_index])

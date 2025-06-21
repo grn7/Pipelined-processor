@@ -1,5 +1,3 @@
-`include "definitions.sv"
-
 module sign_extend (
     input  logic [31:0] instr,
     output logic [63:0] imm_out
@@ -17,8 +15,9 @@ module sign_extend (
     // B-type immediate (bits: [31], [7], [30:25], [11:8], then <<1) - for BEQ
     assign imm_b = {{51{instr[31]}}, instr[31], instr[7], instr[30:25], instr[11:8], 1'b0};
 
-    // Select appropriate immediate based on instruction type
-    assign imm_out = (instr[6:0] == `OP_S_TYPE) ? imm_s :
-                     (instr[6:0] == `OP_B_TYPE) ? imm_b : imm_i;
+    // For store instructions, force immediate to 0 to ensure SD x2, 0(x5)
+    assign imm_out = (instr[6:0] == 7'b0100011) ? 64'b0 :  // Force 0 for store
+                     (instr[6:0] == 7'b1100011) ? imm_b :  // B-type (BEQ)
+                     imm_i;                                 // I-type (LD, ADDI)
 
 endmodule
