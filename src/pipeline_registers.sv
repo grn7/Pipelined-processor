@@ -80,7 +80,7 @@ module id_ex_reg (
     output logic[4:0] rs2_addr_out,
     output logic[4:0] rd_addr_out,
     output logic[63:0] rs1_data_out,
-    output logic[4:0] rs2_data_out,
+    output logic[63:0] rs2_data_out,
     output logic[63:0] imm_out
 );
 always_ff @(posedge clk or posedge rst) begin

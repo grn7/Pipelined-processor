@@ -29,7 +29,7 @@ module branch_predictor (
                 branch_history[i] <= 2'b00;
             end
         end else if (branch_resolved) begin
-            unique case (branch_history[resolved_index])
+            case (branch_history[resolved_index])
                 2'b00: branch_history[resolved_index] <= branch_taken ? 2'b00 : 2'b01;
                 2'b01: branch_history[resolved_index] <= branch_taken ? 2'b00 : 2'b10;
                 2'b10: branch_history[resolved_index] <= branch_taken ? 2'b01 : 2'b11;

@@ -6,22 +6,22 @@ module pipelined_cpu (
     output logic [63:0] debug_out
 );
 
-    // =============================
-    // Signal Wires (a.k.a. Spaghetti)
-    // =============================
-    // If you're looking for why your design broke, chances are it's somewhere here.
+    // =================================
+    // Internal signals
+    // =================================
     logic [63:0] if_pc, id_pc, ex_pc;
     logic [31:0] if_instruction, id_instruction;
     logic [63:0] id_rs1_data, id_rs2_data, id_imm;
     logic [4:0]  id_rs1, id_rs2, id_rd;
     logic [2:0]  id_alu_control;
-    logic        id_reg_write, id_mem_read, id_mem_write, id_mem_to_reg, id_alu_src, id_branch;
-    logic        id_prediction;
+    logic        id_reg_write, id_mem_read, id_mem_write;
+    logic        id_mem_to_reg, id_alu_src, id_branch, id_prediction;
 
     logic [63:0] ex_rs1_data, ex_rs2_data, ex_imm;
     logic [4:0]  ex_rs1, ex_rs2, ex_rd;
     logic [2:0]  ex_alu_control;
-    logic        ex_reg_write, ex_mem_read, ex_mem_write, ex_mem_to_reg, ex_alu_src, ex_branch, ex_prediction;
+    logic        ex_reg_write, ex_mem_read, ex_mem_write;
+    logic        ex_mem_to_reg, ex_alu_src, ex_branch, ex_prediction;
     logic [63:0] ex_alu_result, ex_corrected_pc, ex_store_data;
     logic        ex_zero, ex_branch_taken, ex_prediction_incorrect;
     logic [1:0]  ex_forward_a, ex_forward_b, ex_forward_store;
@@ -38,16 +38,14 @@ module pipelined_cpu (
     logic branch_prediction;
     logic flush_pipeline;
 
-    // ===========================
-    // Brain: Flush Decision Unit
-    // ===========================
-    flush_controller flush_ctrl_inst (
-        .prediction_incorrect(ex_prediction_incorrect),
-        .flush_pipeline       (flush_pipeline)
-    );
+    // =================================
+    // Flush Pipeline on Misprediction
+    // =================================
+    // kill IF/ID and ID/EX when a branch was mispredicted
+    assign flush_pipeline = ex_prediction_incorrect;
 
     // =====================
-    // PC Logic - Dear Diary
+    // PC Logic
     // =====================
     pc_logic_pipelined pc_logic_inst (
         .clk                  (clk),
@@ -61,7 +59,7 @@ module pipelined_cpu (
     );
 
     // ======================
-    // Instruction Memory - ROMcom
+    // Instruction Memory
     // ======================
     instr_mem #(
         .mem_size(17),
@@ -72,37 +70,37 @@ module pipelined_cpu (
     );
 
     // =====================
-    // Branch Predictor 2.0
+    // Branch Predictor
     // =====================
     branch_predictor bp_inst (
-        .clk              (clk),
-        .rst              (rst),
-        .pc               (if_pc),
-        .branch_taken     (ex_branch_taken),
-        .branch_resolved  (ex_branch),
-        .branch_pc        (ex_pc),
-        .prediction       (branch_prediction)
+        .clk             (clk),
+        .rst             (rst),
+        .pc              (if_pc),
+        .branch_taken    (ex_branch_taken),
+        .branch_resolved (ex_branch),
+        .branch_pc       (ex_pc),
+        .prediction      (branch_prediction)
     );
 
-    // ===========================
-    // IF/ID Register - Enter Gate
-    // ===========================
+    // ======================
+    // IF/ID Pipeline Register
+    // ======================
     if_id_reg if_id_reg_inst (
         .clk            (clk),
         .rst            (rst),
         .stall          (hazard_stall),
         .flush          (flush_pipeline),
         .pc_in          (if_pc),
-        .instruction_in (if_instruction),
+        .instr_in       (if_instruction),
         .prediction_in  (branch_prediction),
         .pc_out         (id_pc),
-        .instruction_out(id_instruction),
+        .instr_out      (id_instruction),
         .prediction_out (id_prediction)
     );
 
-    // ==================
-    // ID Stage - Decoder.exe
-    // ==================
+    // ======================
+    // ID Stage
+    // ======================
     assign id_rs1 = id_instruction[19:15];
     assign id_rs2 = id_instruction[24:20];
     assign id_rd  = id_instruction[11:7];
@@ -151,17 +149,20 @@ module pipelined_cpu (
         .mem_mem_rd  (mem_mem_read),
         .mem_reg_wr  (mem_reg_write),
         .stall       (hazard_stall),
-        .flush_id_ex ()
+        .flush_id_ex ()               // unused here: we rely on flush_pipeline
     );
 
+    // ======================
+    // ID/EX Pipeline Register
+    // ======================
     id_ex_reg id_ex_reg_inst (
         .clk           (clk),
         .rst           (rst),
         .flush         (flush_pipeline),
         .alu_control_in(id_alu_control),
-        .reg_write_in  (id_reg_write),
-        .mem_read_in   (id_mem_read),
-        .mem_write_in  (id_mem_write),
+        .reg_wr_in     (id_reg_write),
+        .mem_rd_in     (id_mem_read),
+        .mem_wr_in     (id_mem_write),
         .mem_to_reg_in (id_mem_to_reg),
         .alu_src_in    (id_alu_src),
         .branch_in     (id_branch),
@@ -174,9 +175,9 @@ module pipelined_cpu (
         .rs2_addr_in   (id_rs2),
         .rd_addr_in    (id_rd),
         .alu_control_out(ex_alu_control),
-        .reg_write_out (ex_reg_write),
-        .mem_read_out  (ex_mem_read),
-        .mem_write_out (ex_mem_write),
+        .reg_wr_out    (ex_reg_write),
+        .mem_rd_out    (ex_mem_read),
+        .mem_wr_out    (ex_mem_write),
         .mem_to_reg_out(ex_mem_to_reg),
         .alu_src_out   (ex_alu_src),
         .branch_out    (ex_branch),
@@ -190,26 +191,26 @@ module pipelined_cpu (
         .rd_addr_out   (ex_rd)
     );
 
-    // ====================
-    // EX Stage - It's ALU Time
-    // ====================
+    // ======================
+    // EX Stage + Forwarding
+    // ======================
     forwarding_unit fu_inst (
-        .ex_rs1       (ex_rs1),
-        .ex_rs2       (ex_rs2),
-        .wb_rd        (wb_rd),
-        .mem_rd       (mem_rd),
-        .mem_reg_wr   (mem_reg_write),
-        .wb_reg_wr    (wb_reg_write),
-        .forward_a    (ex_forward_a),
-        .forward_b    (ex_forward_b)
+        .ex_rs1     (ex_rs1),
+        .ex_rs2     (ex_rs2),
+        .wb_rd      (wb_rd),
+        .mem_rd     (mem_rd),
+        .mem_reg_wr (mem_reg_write),
+        .wb_reg_wr  (wb_reg_write),
+        .forward_a  (ex_forward_a),
+        .forward_b  (ex_forward_b)
     );
 
     always_comb begin
-        // Forwarding for store data - no one wants stale variables
+        // Forwarding for store data
         ex_forward_store = 2'b00;
-        if (mem_reg_write && (mem_rd != 5'b0) && (mem_rd == ex_rs2) && ex_mem_write)
+        if (mem_reg_write && mem_rd!=5'b0 && mem_rd==ex_rs2 && ex_mem_write)
             ex_forward_store = 2'b10;
-        else if (wb_reg_write && (wb_rd != 5'b0) && (wb_rd == ex_rs2) && ex_mem_write)
+        else if (wb_reg_write && wb_rd!=5'b0 && wb_rd==ex_rs2 && ex_mem_write)
             ex_forward_store = 2'b01;
     end
 
@@ -218,14 +219,13 @@ module pipelined_cpu (
             2'b00: ex_store_data = ex_rs2_data;
             2'b01: ex_store_data = wb_write_data;
             2'b10: ex_store_data = mem_alu_result;
-            default: ex_store_data = 64'hDEADBEEFCAFEBABE; // what are you even doing
+            default: ex_store_data = 64'hDEADBEEFCAFEBABE;
         endcase
     end
 
-    logic [63:0] ex_alu_b_input;
-    assign ex_alu_b_input = ex_alu_src ? ex_imm : ex_rs2_data;
+    logic [63:0] ex_alu_b_input = ex_alu_src ? ex_imm : ex_rs2_data;
 
-    alu_pipelined alu_inst (
+    alu alu_inst (
         .a           (ex_rs1_data),
         .b           (ex_alu_b_input),
         .alu_control (ex_alu_control),
@@ -240,8 +240,12 @@ module pipelined_cpu (
     assign ex_branch_taken         = ex_branch && ex_zero;
     assign ex_branch_target        = ex_pc + ex_imm;
     assign ex_prediction_incorrect = ex_branch && (ex_branch_taken != ex_prediction);
-    assign ex_corrected_pc         = ex_branch_taken ? ex_branch_target : ex_pc + 64'd4;
+    assign ex_corrected_pc         = ex_branch_taken ? ex_branch_target
+                                                    : ex_pc + 64'd4;
 
+    // ======================
+    // EX/MEM Pipeline Register
+    // ======================
     ex_mem_reg ex_mem_reg_inst (
         .clk            (clk),
         .rst            (rst),
@@ -263,9 +267,9 @@ module pipelined_cpu (
         .zero_out       (mem_zero)
     );
 
-    // ===================
-    // MEM Stage - That One RAM Guy
-    // ===================
+    // ======================
+    // MEM Stage
+    // ======================
     data_mem #(
         .mem_size(256),
         .rom_size(2),
@@ -280,6 +284,9 @@ module pipelined_cpu (
         .rd_data   (mem_read_data)
     );
 
+    // ======================
+    // MEM/WB Pipeline Register
+    // ======================
     mem_wb_reg mem_wb_reg_inst (
         .clk            (clk),
         .rst            (rst),
@@ -295,9 +302,9 @@ module pipelined_cpu (
         .rd_addr_out    (wb_rd)
     );
 
-    // ===================
-    // WB Stage - Final Boss
-    // ===================
+    // ======================
+    // Writeback Stage
+    // ======================
     assign wb_write_data = wb_mem_to_reg ? wb_read_data : wb_alu_result;
 
 endmodule
