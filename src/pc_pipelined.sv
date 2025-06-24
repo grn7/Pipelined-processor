@@ -16,7 +16,7 @@ always_comb begin
         pc_next = corrected_pc;
     end
     else if(stall) begin
-        pc_next = pc;
+        pc_next = pc;  // Hold PC during stall
     end
     else if(branch_taken) begin
         pc_next = branch_target;

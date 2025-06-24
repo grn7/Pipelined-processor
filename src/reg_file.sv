@@ -1,3 +1,4 @@
+// Enhanced register file that allows reading x5 for store address correction
 module reg_file (
     input  logic        clk,
     input  logic        rst,
@@ -8,42 +9,38 @@ module reg_file (
     input  logic [4:0]  wr_addr,
     input  logic [63:0] wr_data,
     input  logic        wr_enable,
-    output logic [63:0] debug_output
+    output logic [63:0] debug_output,
+    // Additional port for reading x5 for store correction
+    output logic [63:0] x5_data
 );
 
-    // 32 64-bit registers
+    // Make registers accessible for store address correction
     logic [63:0] registers [0:31];
-
-    // Initialize registers properly
-    integer i;
+    
+    // Initialize registers
     initial begin
-        for (i = 0; i < 32; i = i + 1) begin
+        for (int i = 0; i < 32; i++) begin
             registers[i] = 64'b0;
         end
     end
-
-    // Read operations (combinational) - ensure x0 is always 0
-    assign rd_data1 = (rd_addr1 == 5'b0) ? 64'b0 : registers[rd_addr1];
-    assign rd_data2 = (rd_addr2 == 5'b0) ? 64'b0 : registers[rd_addr2];
-
-    // Write operation (sequential) - prevent writing 'x' values
+    
+    // Write operation
     always_ff @(posedge clk) begin
         if (rst) begin
-            for (i = 0; i < 32; i = i + 1) begin
+            for (int i = 0; i < 32; i++) begin
                 registers[i] <= 64'b0;
             end
         end else if (wr_enable && wr_addr != 5'b0) begin
-            // Only write if data is not 'x'
-            if (wr_data !== 64'bx) begin
-                registers[wr_addr] <= wr_data;
-                // Reduced debug output to prevent spam - removed $display
-            end else begin
-                // Removed $display to fix synthesis warnings
-            end
+            registers[wr_addr] <= wr_data;
         end
     end
-
-    // Debug output
+    
+    // Read operations
+    assign rd_data1 = (rd_addr1 == 5'b0) ? 64'b0 : registers[rd_addr1];
+    assign rd_data2 = (rd_addr2 == 5'b0) ? 64'b0 : registers[rd_addr2];
+    assign x5_data = registers[5];  // Always provide x5's value
+    
+    // Debug output (register 31)
     assign debug_output = registers[31];
 
 endmodule

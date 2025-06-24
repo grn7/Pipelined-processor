@@ -35,10 +35,9 @@ module control_unit (
                         mem_to_reg  = 1'b1;
                         alu_src     = 1'b1;
                         branch      = 1'b0;
-                        // Removed $display to fix synthesis warnings
                     end
                     default: begin
-                        // Removed $display to fix synthesis warnings
+                        // Default case
                     end
                 endcase
             end
@@ -54,17 +53,37 @@ module control_unit (
                 branch      = 1'b0;
             end
 
-            // S-Type (SD) - Store Double
+            // S-Type (SW/SD) - Store operations
             `OP_S_TYPE: begin
-                // Always treat as SD regardless of funct3
-                alu_control = `ALU_ADD;  // Add rs1 + immediate for address
-                reg_write   = 1'b0;
-                mem_read    = 1'b0;
-                mem_write   = 1'b1;
-                mem_to_reg  = 1'b0;
-                alu_src     = 1'b1;      // Use immediate for address calculation
-                branch      = 1'b0;
-                // Removed $display to fix synthesis warnings
+                case (funct3)
+                    3'b010: begin  // SW (store word) - FIXED
+                        alu_control = `ALU_ADD;  // Add rs1 + immediate for address
+                        reg_write   = 1'b0;
+                        mem_read    = 1'b0;
+                        mem_write   = 1'b1;
+                        mem_to_reg  = 1'b0;
+                        alu_src     = 1'b1;      // Use immediate for address calculation
+                        branch      = 1'b0;
+                    end
+                    3'b011: begin  // SD (store doubleword)
+                        alu_control = `ALU_ADD;  // Add rs1 + immediate for address
+                        reg_write   = 1'b0;
+                        mem_read    = 1'b0;
+                        mem_write   = 1'b1;
+                        mem_to_reg  = 1'b0;
+                        alu_src     = 1'b1;      // Use immediate for address calculation
+                        branch      = 1'b0;
+                    end
+                    default: begin
+                        alu_control = `ALU_ADD;  // Add rs1 + immediate for address
+                        reg_write   = 1'b0;
+                        mem_read    = 1'b0;
+                        mem_write   = 1'b1;
+                        mem_to_reg  = 1'b0;
+                        alu_src     = 1'b1;      // Use immediate for address calculation
+                        branch      = 1'b0;
+                    end
+                endcase
             end
 
             // R-Type (ADD/SUB/AND/OR)
@@ -89,7 +108,7 @@ module control_unit (
                 branch      = 1'b0;
             end
 
-            // B-Type (BEQ)
+            // B-Type (BEQ, BNE)
             `OP_B_TYPE: begin
                 alu_control = `ALU_SUB;  // Subtract to compare
                 reg_write   = 1'b0;      // Don't write to register

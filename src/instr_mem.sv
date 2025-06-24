@@ -1,5 +1,5 @@
 module instr_mem #(
-    parameter integer mem_size = 17, 
+    parameter integer mem_size = 20,
     parameter string  mem_file = "programs/fibo_comp.mem"
 ) (
     input  logic [31:0] address,
@@ -23,9 +23,9 @@ module instr_mem #(
         
         // Display loaded instructions
         $display("Loaded instructions:");
-        for (i = 0; i < mem_size && i < 20; i = i + 1) begin
+        for (i = 0; i < mem_size && i < 16; i = i + 1) begin
             if (memory_array[i] != 32'h00000013) begin
-                $display("  [%0d]: 0x%h", i, memory_array[i]);
+                $display("  [%0d]: 0x%h = %b", i, memory_array[i], memory_array[i]);
             end
         end
     end

@@ -56,6 +56,7 @@ module id_ex_reg (
     input logic[63:0] rs1_data_in,
     input logic[63:0] rs2_data_in,
     input logic[63:0] imm_in,
+    input logic[31:0] instr_in,
 
     output logic[2:0] alu_control_out,
     output logic reg_wr_out,
@@ -72,7 +73,8 @@ module id_ex_reg (
     output logic[4:0] rd_addr_out,
     output logic[63:0] rs1_data_out,
     output logic[63:0] rs2_data_out,
-    output logic[63:0] imm_out
+    output logic[63:0] imm_out,
+    output logic[31:0] instr_out
 );
 
 always_ff @(posedge clk or posedge rst) begin
@@ -93,6 +95,7 @@ always_ff @(posedge clk or posedge rst) begin
         rs1_data_out <= 64'b0;
         rs2_data_out <= 64'b0;
         imm_out <= 64'b0;
+        instr_out <= 32'h00000013;
     end
     else begin
         alu_control_out <= alu_control_in;
@@ -111,6 +114,7 @@ always_ff @(posedge clk or posedge rst) begin
         rs1_data_out <= rs1_data_in;
         rs2_data_out <= rs2_data_in;
         imm_out <= imm_in;
+        instr_out <= instr_in;
     end
 end
 

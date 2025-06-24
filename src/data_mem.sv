@@ -15,8 +15,8 @@ module data_mem #(
     // Memory array
     reg [63:0] memory_array [0:mem_size-1];
     
-    // Word address (divide byte address by 8)
-    wire [31:0] word_addr = addr[31:3];
+    // FIXED: Use direct word addressing since addresses are already word-aligned
+    wire [31:0] word_addr = addr[31:0];  // Use address directly as word address
 
     // Initialize memory
     integer i;
@@ -35,14 +35,12 @@ module data_mem #(
         end
     end
 
-    // Write operation - allow writes to word addresses >= 2
+    // Write operation
     always_ff @(posedge clk) begin
         if (wr_enable && word_addr < mem_size) begin
             if (word_addr >= rom_size) begin  // Allow writes to word addr 2 and above
                 memory_array[word_addr] <= wr_data;
-                // Removed $display to fix synthesis warnings
-            end else begin
-                // Removed $display to fix synthesis warnings
+                $display("MEMORY WRITE: word_addr=%0d, data=%0d", word_addr, wr_data);
             end
         end
     end
