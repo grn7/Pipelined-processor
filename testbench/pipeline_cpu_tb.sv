@@ -27,66 +27,78 @@ module pipeline_cpu_tb;
 
     // Cycle counter
     integer cycle_count = 0;
+    integer instruction_count = 0;  // Add instruction counter
     always @(posedge clk) begin
-        if (rst) 
+        if (rst) begin
             cycle_count <= 0;
-        else 
+            instruction_count <= 0;
+        end else begin
             cycle_count <= cycle_count + 1;
+            // Count instructions that complete (reach WB stage with RegWrite or MemWrite)
+            if (dut.wb_reg_write || (dut.mem_mem_write && cycle_count > 5)) begin
+                instruction_count <= instruction_count + 1;
+            end
+        end
     end
 
-    // Enhanced pipeline status display with signed decimal values
+    // Enhanced pipeline status display with signed decimal values and instruction count
     always_ff @(posedge clk) begin
         if (!rst && cycle_count > 0 && cycle_count <= 200) begin
-            $display("CYCLE %0d:", cycle_count);
+            $display("CYCLE %0d: (Instructions: %0d)", cycle_count, instruction_count);
             $display("  IF: PC=%016h, Instr=%08h", dut.if_pc, dut.if_instruction);
             $display("  ID: PC=%016h, Instr=%08h, rs1=%2d, rs2=%2d, rd=%2d", 
                      dut.id_pc, dut.id_instruction, dut.id_rs1, dut.id_rs2, dut.id_rd);
-            
-            // Enhanced EX stage display with signed decimal ALU results
-            if (dut.ex_instruction[6:0] == 7'b0110011 && dut.ex_instruction[14:12] == 3'b000 && 
-                dut.ex_instruction[31:25] == 7'b0000000 && dut.ex_rs1 == 5'd1 && dut.ex_rs2 == 5'd2 && dut.ex_rd == 5'd3) begin
-                // This is the main Fibonacci ADD instruction
-                $display("  EX: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d *** FIBONACCI: x1(%0d) + x2(%0d) = %0d ***", 
-                         $signed(dut.ex_alu_result), dut.ex_mem_write, dut.ex_mem_read, dut.ex_rd,
-                         $signed(dut.ex_forwarded_a), $signed(dut.ex_forwarded_b), $signed(dut.ex_alu_result));
-            end else if (dut.ex_reg_write && dut.ex_rd != 5'b0 && 
-                        dut.ex_instruction[6:0] == 7'b0110011 && dut.ex_instruction[14:12] == 3'b000 && 
-                        dut.ex_instruction[31:25] == 7'b0000000) begin
-                // Other ADD instructions
-                $display("  EX: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d *** ADD: x%0d + x%0d = %0d ***", 
-                         $signed(dut.ex_alu_result), dut.ex_mem_write, dut.ex_mem_read, dut.ex_rd,
-                         $signed(dut.ex_forwarded_a), $signed(dut.ex_forwarded_b), $signed(dut.ex_alu_result));
-            end else begin
-                // Regular EX stage display with signed decimal
-                $display("  EX: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d", 
-                         $signed(dut.ex_alu_result), dut.ex_mem_write, dut.ex_mem_read, dut.ex_rd);
-            end
-            
-            // MEM stage with signed decimal ALU result
-            $display("  MEM: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d", 
-                     $signed(dut.mem_alu_result), dut.mem_mem_write, dut.mem_mem_read, dut.mem_rd);
-            
-            // WB stage with signed decimal data
+        
+        // Enhanced EX stage display with signed decimal ALU results
+        if (dut.ex_instruction[6:0] == 7'b0110011 && dut.ex_instruction[14:12] == 3'b000 && 
+            dut.ex_instruction[31:25] == 7'b0000000 && dut.ex_rs1 == 5'd1 && dut.ex_rs2 == 5'd2 && dut.ex_rd == 5'd3) begin
+            // This is the main Fibonacci ADD instruction
+            $display("  EX: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d *** FIBONACCI: x1(%0d) + x2(%0d) = %0d ***", 
+                     $signed(dut.ex_alu_result), dut.ex_mem_write, dut.ex_mem_read, dut.ex_rd,
+                     $signed(dut.ex_forwarded_a), $signed(dut.ex_forwarded_b), $signed(dut.ex_alu_result));
+        end else if (dut.ex_reg_write && dut.ex_rd != 5'b0 && 
+                    dut.ex_instruction[6:0] == 7'b0110011 && dut.ex_instruction[14:12] == 3'b000 && 
+                    dut.ex_instruction[31:25] == 7'b0000000) begin
+            // Other ADD instructions
+            $display("  EX: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d *** ADD: x%0d + x%0d = %0d ***", 
+                     $signed(dut.ex_alu_result), dut.ex_mem_write, dut.ex_mem_read, dut.ex_rd,
+                     $signed(dut.ex_forwarded_a), $signed(dut.ex_forwarded_b), $signed(dut.ex_alu_result));
+        end else begin
+            // Regular EX stage display with signed decimal
+            $display("  EX: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d", 
+                     $signed(dut.ex_alu_result), dut.ex_mem_write, dut.ex_mem_read, dut.ex_rd);
+        end
+        
+        // MEM stage with signed decimal ALU result
+        $display("  MEM: ALURes=%0d, MemWrite=%b, MemRead=%b, rd=%2d", 
+                 $signed(dut.mem_alu_result), dut.mem_mem_write, dut.mem_mem_read, dut.mem_rd);
+        
+        // WB stage with signed decimal data and instruction completion indicator
+        if (dut.wb_reg_write) begin
+            $display("  WB: rd=%2d, data=%0d, RegWrite=%b *** INSTRUCTION COMPLETED ***", 
+                     dut.wb_rd, $signed(dut.wb_write_data), dut.wb_reg_write);
+        end else begin
             $display("  WB: rd=%2d, data=%0d, RegWrite=%b", 
                      dut.wb_rd, $signed(dut.wb_write_data), dut.wb_reg_write);
-            
-            // Display key Fibonacci registers through register file
-            $display("  Fib Registers: x1=%20d, x2=%20d, x3=%20d, x5=%20d, x31=%20d", 
-                     $signed(dut.rf_inst.registers[1]), $signed(dut.rf_inst.registers[2]), $signed(dut.rf_inst.registers[3]), 
-                     $signed(dut.rf_inst.registers[5]), $signed(dut.rf_inst.registers[31]));
-            $display("  Loop Registers: x4=%20d, x27=%20d", 
-                     $signed(dut.rf_inst.registers[4]), $signed(dut.rf_inst.registers[27]));
-            $display("  Hazard stall: %b", dut.hazard_stall);
-            
-            // Special highlighting for Fibonacci ADD operations in ID stage
-            if (dut.id_instruction[6:0] == 7'b0110011 && dut.id_instruction[14:12] == 3'b000 && 
-                dut.id_instruction[31:25] == 7'b0000000 && dut.id_rs1 == 5'd1 && dut.id_rs2 == 5'd2 && dut.id_rd == 5'd3) begin
-                $display("  *** FIBONACCI ADD: x%0d = x%0d + x%0d ***", dut.id_rd, dut.id_rs1, dut.id_rs2);
-            end
-            
-            $display("");
         end
+        
+        // Display key Fibonacci registers through register file
+        $display("  Fib Registers: x1=%20d, x2=%20d, x3=%20d, x5=%20d, x31=%20d", 
+                 $signed(dut.rf_inst.registers[1]), $signed(dut.rf_inst.registers[2]), $signed(dut.rf_inst.registers[3]), 
+                 $signed(dut.rf_inst.registers[5]), $signed(dut.rf_inst.registers[31]));
+        $display("  Loop Registers: x4=%20d, x27=%20d", 
+                 $signed(dut.rf_inst.registers[4]), $signed(dut.rf_inst.registers[27]));
+        $display("  Hazard stall: %b", dut.hazard_stall);
+        
+        // Special highlighting for Fibonacci ADD operations in ID stage
+        if (dut.id_instruction[6:0] == 7'b0110011 && dut.id_instruction[14:12] == 3'b000 && 
+            dut.id_instruction[31:25] == 7'b0000000 && dut.id_rs1 == 5'd1 && dut.id_rs2 == 5'd2 && dut.id_rd == 5'd3) begin
+            $display("  *** FIBONACCI ADD: x%0d = x%0d + x%0d ***", dut.id_rd, dut.id_rs1, dut.id_rs2);
+        end
+        
+        $display("");
     end
+end
 
     // Additional real-time Fibonacci calculation monitor with signed values
     always_ff @(posedge clk) begin
@@ -124,7 +136,7 @@ module pipeline_cpu_tb;
         // Run for enough cycles to complete Fibonacci calculation
         #2000;
         
-        // Final results with signed decimal display
+        // Final results with signed decimal display and actual CPI calculation
         $display("=== FINAL RESULTS ===");
         $display("Debug output (Register 31): %0d", $signed(debug_out));
         $display("Register 1 (Fib n-1): %0d", $signed(dut.rf_inst.registers[1]));
@@ -134,7 +146,7 @@ module pipeline_cpu_tb;
         $display("Register 5 (addr):    %0d", $signed(dut.rf_inst.registers[5]));
         $display("Register 27 (diff):   %0d", $signed(dut.rf_inst.registers[27]));
         $display("");
-        
+
         // Memory dump with proper integer declaration
         $display("=== FIBONACCI SEQUENCE IN MEMORY ===");
         $display("Memory dump (first 20 locations):");
@@ -145,7 +157,7 @@ module pipeline_cpu_tb;
             end
         end
         $display("");
-        
+
         // Verification
         $display("Expected vs Actual:");
         $display(" Fib(1) = 1 [%s] (at word addr 2)", (dut.data_mem_inst.memory_array[2] == 1) ? "CORRECT" : "ERROR");
@@ -157,7 +169,7 @@ module pipeline_cpu_tb;
         $display(" Fib(7) = 13 [%s] (at word addr 8)", (dut.data_mem_inst.memory_array[8] == 13) ? "CORRECT" : "ERROR");
         $display(" Fib(8) = 21 [%s] (at word addr 9)", (dut.data_mem_inst.memory_array[9] == 21) ? "CORRECT" : "ERROR");
         $display(" Fib(9) = 34 [%s] (at word addr 10)", (dut.data_mem_inst.memory_array[10] == 34) ? "CORRECT" : "ERROR");
-        
+
         // Count correct values
         begin : verification
             integer correct_count;
@@ -180,10 +192,21 @@ module pipeline_cpu_tb;
                 $display("ERROR: Some Fibonacci values are incorrect!");
             end
         end
-        
+
         $display("");
-        $display("=== PIPELINE STATISTICS ===");
-        $display("Total cycles: %0d", cycle_count);
+        $display("=== PIPELINE PERFORMANCE STATISTICS ===");
+        $display("Total cycles executed: %0d", cycle_count);
+        $display("Total instructions completed: %0d", instruction_count);
+        begin : cpi_calculation
+            real cpi_value;
+            if (instruction_count > 0) begin
+                cpi_value = real'(cycle_count) / real'(instruction_count);
+                $display("Cycles Per Instruction (CPI): %.3f", cpi_value);
+                $display("Instructions Per Cycle (IPC): %.3f", real'(instruction_count) / real'(cycle_count));
+            end else begin
+                $display("ERROR: No instructions completed!");
+            end
+        end
         
         $finish;
     end
