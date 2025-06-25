@@ -264,8 +264,8 @@ module pipelined_cpu (
     assign ex_prediction_incorrect = ex_branch && (ex_branch_taken != ex_prediction);
     assign ex_corrected_pc = ex_branch_taken ? ex_branch_target : ex_pc + 64'd4;
 
-    // Enhanced debug output with detailed hazard and forwarding info
-    always @(posedge clk) begin
+    // Enhanced debug output with synchronized timing
+    always_ff @(posedge clk) begin
         if (!rst && cycle_count > 0 && cycle_count <= 50) begin
             // Show store operations with detailed address info
             if (ex_mem_write && !hazard_stall) begin
@@ -274,16 +274,23 @@ module pipelined_cpu (
                          ex_forward_a, ex_forward_b);
             end
             
-            // Show ADD operations (Fibonacci calculations)
+            // Show ADD operations (Fibonacci calculations) with synchronized ALU result
             if (ex_instruction[6:0] == 7'b0110011 && ex_instruction[14:12] == 3'b000 && 
-                ex_instruction[31:25] == 7'b0000000 && !hazard_stall) begin
-                $display("CYCLE %0d: FIBONACCI ADD: x%d = x%d + x%d = %d + %d = %d", 
-                         cycle_count, ex_rd, ex_rs1, ex_rs2, 
-                         ex_forwarded_a, ex_forwarded_b, ex_alu_result);
+                ex_instruction[31:25] == 7'b0000000 && !hazard_stall && ex_reg_write) begin
+                if (ex_rs1 == 5'd1 && ex_rs2 == 5'd2 && ex_rd == 5'd3) begin
+                    // This is the main Fibonacci calculation
+                    $display("CYCLE %0d: *** FIBONACCI CALCULATION *** x%d = x%d + x%d = %d + %d = %d", 
+                             cycle_count, ex_rd, ex_rs1, ex_rs2, 
+                             ex_forwarded_a, ex_forwarded_b, ex_alu_result);
+                end else begin
+                    $display("CYCLE %0d: ADD: x%d = x%d + x%d = %d + %d = %d", 
+                             cycle_count, ex_rd, ex_rs1, ex_rs2, 
+                             ex_forwarded_a, ex_forwarded_b, ex_alu_result);
+                end
             end
             
             // Show ADDI operations (register updates)
-            if (ex_instruction[6:0] == 7'b0010011 && ex_instruction[14:12] == 3'b000 && !hazard_stall) begin
+            if (ex_instruction[6:0] == 7'b0010011 && ex_instruction[14:12] == 3'b000 && !hazard_stall && ex_reg_write) begin
                 $display("CYCLE %0d: ADDI: x%d = x%d + %d = %d + %d = %d", 
                          cycle_count, ex_rd, ex_rs1, ex_imm, 
                          ex_forwarded_a, ex_imm, ex_alu_result);
@@ -293,6 +300,22 @@ module pipelined_cpu (
             if (hazard_stall) begin
                 $display("CYCLE %0d: RAW HAZARD STALL - ID(rs1=%d,rs2=%d) waits for EX(rd=%d,regwr=%b)", 
                          cycle_count, id_rs1, id_rs2, ex_rd, ex_reg_write);
+            end
+        end
+    end
+
+    // Real-time ALU result monitoring for all register writes
+    always_ff @(posedge clk) begin
+        if (!rst && cycle_count > 0 && cycle_count <= 50) begin
+            // Monitor all ALU results in EX stage with proper timing
+            if (ex_reg_write && !hazard_stall && (ex_rd != 5'b0)) begin
+                if (ex_instruction[6:0] == 7'b0110011 && ex_rs1 == 5'd1 && ex_rs2 == 5'd2 && ex_rd == 5'd3) begin
+                    $display("CYCLE %0d: *** EX_FIBONACCI_ALU *** rd=x%d, result=%d (0x%h) [Fib(%d)]", 
+                             cycle_count, ex_rd, ex_alu_result, ex_alu_result, (cycle_count-7)/17+1);
+                end else begin
+                    $display("CYCLE %0d: EX_STAGE_ALU: rd=x%d, ALU_result=%d (0x%h)", 
+                             cycle_count, ex_rd, ex_alu_result, ex_alu_result);
+                end
             end
         end
     end
