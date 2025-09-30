@@ -4,7 +4,7 @@ Welcome to our implementation of a 5-stage pipelined RISC-V processor\! This pro
 
 ## ✨ Key Features
 
-  * ** blazing\_fast: 5-Stage Pipelined Architecture:** We're talking about a classic 5-stage pipeline (IF, ID, EX, MEM, WB) that allows the processor to work on multiple instructions simultaneously, boosting performance significantly.
+  * 💽 **5-Stage Pipelined Architecture:** We're talking about a classic 5-stage pipeline (IF, ID, EX, MEM, WB) that allows the processor to work on multiple instructions simultaneously, boosting performance significantly.
   * **🧠 Intelligent Hazard Detection:** Our processor is smart enough to detect and handle data hazards, preventing incorrect results and ensuring the integrity of your programs.
   * **forwarding: Data Forwarding for Maximum Efficiency:** Why wait when you can forward? The built-in forwarding unit minimizes stalls by cleverly routing data from later pipeline stages back to where it's needed most.
   * **🔮 Crystal Ball Branch Prediction:** Our branch predictor uses a 2-bit saturating counter to make educated guesses about the outcome of branch instructions, minimizing pipeline flushes and keeping the instruction flow smooth.
